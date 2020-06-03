@@ -42,8 +42,7 @@ def exists(container):
     '''
     Check if container exists
     '''
-    if container in ls(): return True
-    return False
+    return container in ls()
 
 
 def create(container, template='ubuntu', storage=None, xargs=None):
@@ -156,7 +155,7 @@ def freeze(container):
     Freezes a container
     '''
     if not exists(container): raise ContainerDoesntExists('Container {} does not exists!'.format(container))
-    if not container in running(): raise ContainerNotRunning('Container {} is not running!'.format(container))
+    if container not in running(): raise ContainerNotRunning('Container {} is not running!'.format(container))
     return _run('lxc-freeze -n {}'.format(container))
 
 
@@ -165,7 +164,7 @@ def unfreeze(container):
     Unfreezes a container
     '''
     if not exists(container): raise ContainerDoesntExists('Container {} does not exists!'.format(container))
-    if not container in frozen(): raise ContainerNotRunning('Container {} is not frozen!'.format(container))
+    if container not in frozen(): raise ContainerNotRunning('Container {} is not frozen!'.format(container))
     return _run('lxc-unfreeze -n {}'.format(container))
 
 

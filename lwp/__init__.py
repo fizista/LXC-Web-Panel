@@ -10,22 +10,22 @@ import ConfigParser
 import re
 
 class CalledProcessError(Exception): pass
-
-cgroup = {}
-cgroup['type'] = 'lxc.network.type'
-cgroup['link'] = 'lxc.network.link'
-cgroup['flags'] = 'lxc.network.flags'
-cgroup['hwaddr'] = 'lxc.network.hwaddr'
-cgroup['rootfs'] = 'lxc.rootfs'
-cgroup['utsname'] = 'lxc.utsname'
-cgroup['arch'] = 'lxc.arch'
-cgroup['ipv4'] = 'lxc.network.ipv4'
-cgroup['memlimit'] = 'lxc.cgroup.memory.limit_in_bytes'
-cgroup['swlimit'] = 'lxc.cgroup.memory.memsw.limit_in_bytes'
-cgroup['cpus'] = 'lxc.cgroup.cpuset.cpus'
-cgroup['shares'] = 'lxc.cgroup.cpu.shares'
-cgroup['deny'] = 'lxc.cgroup.devices.deny'
-cgroup['allow'] = 'lxc.cgroup.devices.allow'
+cgroup = {
+    'type': 'lxc.network.type',
+    'link': 'lxc.network.link',
+    'flags': 'lxc.network.flags',
+    'hwaddr': 'lxc.network.hwaddr',
+    'rootfs': 'lxc.rootfs',
+    'utsname': 'lxc.utsname',
+    'arch': 'lxc.arch',
+    'ipv4': 'lxc.network.ipv4',
+    'memlimit': 'lxc.cgroup.memory.limit_in_bytes',
+    'swlimit': 'lxc.cgroup.memory.memsw.limit_in_bytes',
+    'cpus': 'lxc.cgroup.cpuset.cpus',
+    'shares': 'lxc.cgroup.cpu.shares',
+    'deny': 'lxc.cgroup.devices.deny',
+    'allow': 'lxc.cgroup.devices.allow',
+}
 
 class FakeSection(object):
     def __init__(self, fp):
@@ -304,11 +304,7 @@ def get_container_settings(name):
     except ConfigParser.NoOptionError:
         cfg['shares'] = ''
 
-    if '%s.conf' % name in ls_auto():
-        cfg['auto'] = True
-    else:
-        cfg['auto'] = False
-
+    cfg['auto'] = True if '%s.conf' % name in ls_auto() else False
     return cfg
 
 
@@ -316,35 +312,35 @@ def push_net_value(key, value, filename='/etc/default/lxc'):
     '''
     replace a var in the lxc-net config file
     '''
-    if filename:
-        config = ConfigParser.RawConfigParser()
-        config.readfp(FakeSection(open(filename)))
-        if not value:
-            config.remove_option('DEFAULT', key)
-        else:
-            config.set('DEFAULT', key, value)
+    if not filename:
+        return
 
-        with open(filename, 'wb') as configfile:
-            config.write(configfile)
+    config = ConfigParser.RawConfigParser()
+    config.readfp(FakeSection(open(filename)))
+    if not value:
+        config.remove_option('DEFAULT', key)
+    else:
+        config.set('DEFAULT', key, value)
 
-        DelSection(filename=filename)
+    with open(filename, 'wb') as configfile:
+        config.write(configfile)
 
-        load = open(filename, 'r')
-        read = load.readlines()
-        load.close()
-        i = 0
-        while i < len(read):
-            if ' = ' in read[i]:
-                split = read[i].split(' = ')
-                split[1] = split[1].strip('\n')
-                if '\"' in split[1]:
-                    read[i] = '%s=%s\n' % (split[0].upper(), split[1])
-                else:
-                    read[i] = '%s=\"%s\"\n' % (split[0].upper(), split[1])
-            i += 1
-        load = open(filename, 'w')
-        load.writelines(read)
-        load.close()
+    DelSection(filename=filename)
+
+    load = open(filename, 'r')
+    read = load.readlines()
+    load.close()
+    for i in range(len(read)):
+        if ' = ' in read[i]:
+            split = read[i].split(' = ')
+            split[1] = split[1].strip('\n')
+            if '\"' in split[1]:
+                read[i] = '%s=%s\n' % (split[0].upper(), split[1])
+            else:
+                read[i] = '%s=\"%s\"\n' % (split[0].upper(), split[1])
+    load = open(filename, 'w')
+    load.writelines(read)
+    load.close()
 
 
 def push_config_value(key, value, container=None):
@@ -357,19 +353,20 @@ def push_config_value(key, value, container=None):
         returns multiple values (lxc.cgroup.devices.deny and lxc.cgroup.devices.allow) in a list.
         because ConfigParser cannot make this...
         '''
-        if filename:
-            values = []
-            i = 0
+        if not filename:
+            return
 
-            load = open(filename, 'r')
-            read = load.readlines()
-            load.close()
+        values = []
+        load = open(filename, 'r')
+        read = load.readlines()
+        load.close()
 
-            while i < len(read):
-                if not read[i].startswith('#') and re.match('lxc.cgroup.devices.deny|lxc.cgroup.devices.allow', read[i]):
-                    values.append(read[i])
-                i += 1
-            return values
+        for item in read:
+            if not item.startswith('#') and re.match(
+                'lxc.cgroup.devices.deny|lxc.cgroup.devices.allow', item
+            ):
+                values.append(item)
+        return values
 
     if container:
         filename = '/var/lib/lxc/%s/config' % container
